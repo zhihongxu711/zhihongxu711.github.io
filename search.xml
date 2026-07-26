@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search> 
+  
+  
+    
+    <entry>
+      <title>你好，世界</title>
+      <link href="/2026/07/25/%E4%BD%A0%E5%A5%BD%EF%BC%8C%E4%B8%96%E7%95%8C/"/>
+      <url>/2026/07/25/%E4%BD%A0%E5%A5%BD%EF%BC%8C%E4%B8%96%E7%95%8C/</url>
+      
+        <content type="html"><![CDATA[<p>这是我的第一篇博客文章，使用 <strong>Hexo</strong> 和 <strong>Fluid</strong> 主题搭建。</p><h2 id="关于我"><a href="#关于我" class="headerlink" title="关于我"></a>关于我</h2><p>一个热爱技术、喜欢记录生活的人。</p><h2 id="为什么要写博客？"><a href="#为什么要写博客？" class="headerlink" title="为什么要写博客？"></a>为什么要写博客？</h2><ul><li>📝 记录学习的点滴</li><li>🔍 加深对知识的理解</li><li>🤝 与他人分享交流</li></ul><h2 id="测试代码块"><a href="#测试代码块" class="headerlink" title="测试代码块"></a>测试代码块</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs python"><span class="hljs-built_in">print</span>(<span class="hljs-string">&quot;Hello, World!&quot;</span>)<br></code></pre></td></tr></table></figure><h2 id="测试图片"><a href="#测试图片" class="headerlink" title="测试图片"></a>测试图片</h2><blockquote><p>未来这里会有更多精彩内容，敬请期待！</p></blockquote>]]></content>
+      
+      
+      <categories>
+          
+          <category> 生活 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 随笔 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+  
+  
+</search>
