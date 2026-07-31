@@ -1,0 +1,1055 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/fluid.png">
+  
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="zhihong.xu">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="前言在 VMware 虚拟机上使用外置的 MT7921U USB 无线网卡(MediaTek,VID:PID 0e8d:7961),想从源码自己编译驱动并手动加载,而不是依赖发行版自带的驱动。整个过程踩了不少坑:老源码与内核 API 不兼容、Ubuntu 头文件包含关系变化、模块签名校验、同名模块共存问题等等。 这篇文章完整记录整个流程、工具链、命令、遇到的问题和解决方法,最后附上持久化安装的方案">
+<meta property="og:type" content="article">
+<meta property="og:title" content="VMware 虚拟机自编译 MT7921U 无线网卡驱动全记录">
+<meta property="og:url" content="https://zhihongxu711.github.io/2026/07/31/Linux-%E8%87%AA%E7%BC%96%E8%AF%91MT7921U%E6%97%A0%E7%BA%BF%E7%BD%91%E5%8D%A1%E9%A9%B1%E5%8A%A8%E5%85%A8%E8%AE%B0%E5%BD%95/index.html">
+<meta property="og:site_name" content="个人博客">
+<meta property="og:description" content="前言在 VMware 虚拟机上使用外置的 MT7921U USB 无线网卡(MediaTek,VID:PID 0e8d:7961),想从源码自己编译驱动并手动加载,而不是依赖发行版自带的驱动。整个过程踩了不少坑:老源码与内核 API 不兼容、Ubuntu 头文件包含关系变化、模块签名校验、同名模块共存问题等等。 这篇文章完整记录整个流程、工具链、命令、遇到的问题和解决方法,最后附上持久化安装的方案">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2026-07-31T15:45:00.000Z">
+<meta property="article:modified_time" content="2026-07-31T15:43:26.523Z">
+<meta property="article:author" content="zhihong.xu">
+<meta property="article:tag" content="Linux">
+<meta property="article:tag" content="MT7921U">
+<meta property="article:tag" content="mt76">
+<meta property="article:tag" content="内核编译">
+<meta property="article:tag" content="驱动">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+  
+  <title>VMware 虚拟机自编译 MT7921U 无线网卡驱动全记录 - 个人博客</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1749284_5i9bdhy70f8.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/c/font_1736178_k526ubmyhba.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"zhihongxu711.github.io","root":"/","version":"1.9.9","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"expand_all":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":{"measurement_id":null},"tencent":{"sid":null,"cid":null},"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false},"openkounter":{"server_url":"https://open-kounter.mintimate.cn","path":"window.location.pathname","ignore_local":false},"umami":{"src":null,"website_id":null,"domains":null,"start_time":"2024-01-01T00:00:00.000Z","token":null,"api_server":null}},"search_path":"/local-search.xml","include_content_in_search":true};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 8.1.2"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>个人博客</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content (desktop) -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/" target="_self">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/" target="_self">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/" target="_self">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/" target="_self">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/" target="_self">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile grid menu overlay -->
+<div id="mobile-grid-menu" class="d-lg-none">
+  <div class="mobile-grid-menu-inner">
+    <div class="container">
+      <div class="row">
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-home-fill"></i>
+                  <span>首页</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/archives/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-archive-fill"></i>
+                  <span>归档</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/categories/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-category-fill"></i>
+                  <span>分类</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/tags/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-tags-fill"></i>
+                  <span>标签</span>
+                </div>
+              </a>
+            </div>
+          
+        
+          
+          
+          
+          
+            <div class="col-4 mobile-grid-cell">
+              <a href="/about/" target="_self">
+                <div class="mobile-grid-item">
+                  <i class="iconfont icon-user-fill"></i>
+                  <span>关于</span>
+                </div>
+              </a>
+            </div>
+          
+        
+        
+          <div class="col-4 mobile-grid-cell" id="mobile-search-btn">
+            <a href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <div class="mobile-grid-item">
+                <i class="iconfont icon-search"></i>
+                <span>搜索</span>
+              </div>
+            </a>
+          </div>
+        
+        
+          <div class="col-4 mobile-grid-cell" id="mobile-color-toggle-btn"
+               data-label-light="开灯"
+               data-label-dark="关灯">
+            <a href="javascript:;" aria-label="Color Toggle">
+              <div class="mobile-grid-item">
+                <i class="iconfont icon-dark" id="mobile-color-toggle-icon"></i>
+                <span id="mobile-color-toggle-label">关灯</span>
+              </div>
+            </a>
+          </div>
+        
+      </div>
+    </div>
+  </div>
+</div>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="VMware 虚拟机自编译 MT7921U 无线网卡驱动全记录"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-author" aria-hidden="true"></i>
+        zhihong.xu
+      </span>
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2026-07-31 23:45" pubdate>
+          2026年7月31日 晚上
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          9.2k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          77 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <h1 id="seo-header">VMware 虚拟机自编译 MT7921U 无线网卡驱动全记录</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>在 VMware 虚拟机上使用外置的 <strong>MT7921U</strong> USB 无线网卡(MediaTek,VID:PID <code>0e8d:7961</code>),想从源码自己编译驱动并手动加载,而不是依赖发行版自带的驱动。整个过程踩了不少坑:老源码与内核 API 不兼容、Ubuntu 头文件包含关系变化、模块签名校验、同名模块共存问题等等。</p>
+<p>这篇文章完整记录整个流程、工具链、命令、遇到的问题和解决方法,最后附上持久化安装的方案(仅供记录,本文写作时未执行)。</p>
+<span id="more"></span>
+
+<hr>
+<h2 id="一、环境与背景"><a href="#一、环境与背景" class="headerlink" title="一、环境与背景"></a>一、环境与背景</h2><h3 id="1-运行环境"><a href="#1-运行环境" class="headerlink" title="1. 运行环境"></a>1. 运行环境</h3><table>
+<thead>
+<tr>
+<th>项目</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>虚拟机</td>
+<td>VMware (VMware 虚拟 USB 控制器)</td>
+</tr>
+<tr>
+<td>操作系统</td>
+<td>Ubuntu,内核 <code>7.0.0-28-generic</code></td>
+</tr>
+<tr>
+<td>无线网卡</td>
+<td>MediaTek MT7921U,USB 接口,<code>0e8d:7961</code></td>
+</tr>
+<tr>
+<td>网络</td>
+<td>有线 <code>ens33</code>(VMware 虚拟网卡,保证远程连接不掉线)</td>
+</tr>
+</tbody></table>
+<h3 id="2-为什么要自己编译"><a href="#2-为什么要自己编译" class="headerlink" title="2. 为什么要自己编译"></a>2. 为什么要自己编译</h3><p>系统其实<strong>自带</strong>了能用的 <code>mt7921u</code> 驱动(接口 <code>wlx…</code> 都能识别出来)。自己编译的意义在于:</p>
+<ul>
+<li>使用<strong>最新上游源码</strong>,可能修复自带版本的问题、获得新特性;</li>
+<li>理解内核模块从编译到加载的完整链路;</li>
+<li>后续可以随意<strong>修改驱动代码</strong>按需定制。</li>
+</ul>
+<h3 id="3-可行性评估-开始前必做"><a href="#3-可行性评估-开始前必做" class="headerlink" title="3. 可行性评估(开始前必做)"></a>3. 可行性评估(开始前必做)</h3><p>开始之前先确认了这些前提是否满足:</p>
+<table>
+<thead>
+<tr>
+<th>检查项</th>
+<th>检查命令</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>硬件识别</td>
+<td><code>lsusb</code></td>
+<td>✅ <code>0e8d:7961 MediaTek Wireless_Device</code></td>
+</tr>
+<tr>
+<td>内核头文件</td>
+<td><code>ls /lib/modules/$(uname -r)/build</code></td>
+<td>✅ 存在,指向 <code>linux-headers-7.0.0-28-generic</code></td>
+</tr>
+<tr>
+<td>编译工具链</td>
+<td><code>gcc --version</code> &#x2F; <code>make --version</code></td>
+<td>✅ gcc 13.3.0 &#x2F; GNU Make 4.3</td>
+</tr>
+<tr>
+<td>驱动源码</td>
+<td><code>ls mt7921/usb.c</code></td>
+<td>✅ <code>~/code/mt76</code> 含 mt7921u 驱动</td>
+</tr>
+<tr>
+<td>固件</td>
+<td><code>ls /lib/firmware/mediatek/</code></td>
+<td>✅ MT7922 系列固件(与 7921 共用)</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>结论:条件齐全,<strong>可行</strong>。</p>
+</blockquote>
+<hr>
+<h2 id="二、编译工具链"><a href="#二、编译工具链" class="headerlink" title="二、编译工具链"></a>二、编译工具链</h2><table>
+<thead>
+<tr>
+<th>工具</th>
+<th>版本</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>gcc</td>
+<td>13.3.0</td>
+<td>Ubuntu 自带,与内核编译所用一致</td>
+</tr>
+<tr>
+<td>GNU Make</td>
+<td>4.3</td>
+<td>kbuild 依赖</td>
+</tr>
+<tr>
+<td>linux-headers-7.0.0-28-generic</td>
+<td>与运行内核完全匹配</td>
+<td>编译内核模块必需</td>
+</tr>
+</tbody></table>
+<p>编译时会有两个<strong>无害</strong>警告(不用管):</p>
+<figure class="highlight livecodeserver"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs livecodeserver">warning: <span class="hljs-keyword">the</span> compiler differs <span class="hljs-built_in">from</span> <span class="hljs-keyword">the</span> <span class="hljs-literal">one</span> used <span class="hljs-built_in">to</span> build <span class="hljs-keyword">the</span> kernel<br>warning: pahole <span class="hljs-built_in">version</span> differs <span class="hljs-built_in">from</span> <span class="hljs-keyword">the</span> <span class="hljs-literal">one</span> used <span class="hljs-built_in">to</span> build <span class="hljs-keyword">the</span> kernel<br>  Skipping BTF generation ... due <span class="hljs-built_in">to</span> unavailability <span class="hljs-keyword">of</span> vmlinux<br></code></pre></td></tr></table></figure>
+
+<p>含义:编译器调用名与内核编译时不同、缺少 pahole(生成 BTF 调试信息用)。不影响模块功能,BTF 只是被跳过。</p>
+<hr>
+<h2 id="三、源码准备-分支很关键"><a href="#三、源码准备-分支很关键" class="headerlink" title="三、源码准备:分支很关键"></a>三、源码准备:分支很关键</h2><p>源码是 openwrt 镜像的 <strong>mt76</strong> 驱动仓库:<code>https://github.com/openwrt/mt76.git</code>,当前检出的分支和版本决定了后续一切:</p>
+<figure class="highlight cos"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs cos">$ git log -<span class="hljs-number">1</span> --format=&#x27;<span class="hljs-built_in">%ci</span> <span class="hljs-built_in">%h</span> <span class="hljs-built_in">%s</span>&#x27;   # 初始状态(旧分支)<br><span class="hljs-number">2024</span>-<span class="hljs-number">04</span>-<span class="hljs-number">03</span> <span class="hljs-number">1</span>e336a85 wifi: mt76: connac: <span class="hljs-keyword">use</span> muar idx <span class="hljs-number">0</span>xe <span class="hljs-keyword">for</span> non-mt799x <span class="hljs-keyword">as</span> well<br></code></pre></td></tr></table></figure>
+
+<p>这是 <strong><code>openwrt-23.05</code> 分支,停留在 2024-04</strong>,而内核是 2026 年的 7.0。<strong>两年多的 API 差异</strong>导致后面一大堆编译错误。解决办法:切到跟踪上游的 <code>master</code> 分支:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs bash">git stash        <span class="hljs-comment"># 暂存临时补丁(可选)</span><br>git fetch origin --prune<br>git checkout -B master origin/master<br>git <span class="hljs-built_in">log</span> -1 --format=<span class="hljs-string">&#x27;%ci %h %s&#x27;</span><br><span class="hljs-comment"># 2026-07-29 7f4a3b71 wifi: mt76: mt7915: send the STA_REC ...   ← 最新的</span><br></code></pre></td></tr></table></figure>
+
+<blockquote>
+<p>核心教训:<strong>内核驱动编译,源码版本必须和内核时代匹配</strong>。宁可切最新,也不要在旧分支上手工补几十个 API 签名。</p>
+</blockquote>
+<hr>
+<h2 id="四、编译过程与踩坑记录"><a href="#四、编译过程与踩坑记录" class="headerlink" title="四、编译过程与踩坑记录"></a>四、编译过程与踩坑记录</h2><h3 id="1-编译命令"><a href="#1-编译命令" class="headerlink" title="1. 编译命令"></a>1. 编译命令</h3><p>mt76 是内核模块,用 kbuild 外编(<code>M=</code> 指定源码目录):</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-built_in">cd</span> ~/code/mt76<br>make -C /lib/modules/$(<span class="hljs-built_in">uname</span> -r)/build M=<span class="hljs-variable">$PWD</span> \<br>  CONFIG_MT76=m CONFIG_MT76_USB=m CONFIG_MT76_CONNAC_LIB=m \<br>  CONFIG_MT792x_LIB=m CONFIG_MT792x_USB=m \<br>  CONFIG_MT7921_COMMON=m CONFIG_MT7921U=m \<br>  CONFIG_MT76_SDIO=n CONFIG_MT76x02_LIB=n CONFIG_MT76x02_USB=n \<br>  CONFIG_MT76x0_COMMON=n CONFIG_MT76x2_COMMON=n CONFIG_MT7603E=n \<br>  CONFIG_MT7615_COMMON=n CONFIG_MT7915E=n CONFIG_MT7996E=n CONFIG_MT7925_COMMON=n \<br>  CONFIG_MT7921E=n CONFIG_MT7921S=n \<br>  modules<br></code></pre></td></tr></table></figure>
+
+<h3 id="2-踩坑-1-老驱动被一起编译-API-不兼容"><a href="#2-踩坑-1-老驱动被一起编译-API-不兼容" class="headerlink" title="2. 踩坑 1:老驱动被一起编译,API 不兼容"></a>2. 踩坑 1:老驱动被一起编译,API 不兼容</h3><p><strong>现象</strong>:编译一开始就报 <code>mt76x0/usb.c</code> 大量错误,如 <code>.stop</code> &#x2F; <code>.config</code> &#x2F; <code>.get_antenna</code> 函数签名不匹配。</p>
+<p><strong>原因</strong>:kbuild 外编时,没有显式指定的 <code>CONFIG_*</code> 符号会<strong>沿用内核 <code>.config</code> 里的值</strong>。Ubuntu 内核把所有 mt76 子驱动都编成了模块,于是 <code>MT76x0_COMMON</code> 等老驱动也被拖进编译,而 <strong>mt76x0 太老,和内核 7.0 的新 cfg80211&#x2F;mac80211 API 不兼容</strong>。</p>
+<p><strong>解决</strong>:只需要 USB 驱动链,把<strong>所有不需要的子驱动显式 <code>=n</code></strong>(就是上面命令里那一长串 <code>=n</code>)。</p>
+<h3 id="3-踩坑-2-LINUX-VERSION-CODE-未定义"><a href="#3-踩坑-2-LINUX-VERSION-CODE-未定义" class="headerlink" title="3. 踩坑 2:LINUX_VERSION_CODE 未定义"></a>3. 踩坑 2:<code>LINUX_VERSION_CODE</code> 未定义</h3><p><strong>现象</strong>:</p>
+<figure class="highlight vbnet"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs vbnet">mt76.h:<span class="hljs-number">24</span>: <span class="hljs-keyword">error</span>: <span class="hljs-string">&quot;LINUX_VERSION_CODE&quot;</span> <span class="hljs-built_in">is</span> <span class="hljs-built_in">not</span> defined, evaluates <span class="hljs-keyword">to</span> <span class="hljs-number">0</span> [-Wundef]<br>mt76.h:<span class="hljs-number">24</span>: <span class="hljs-keyword">error</span>: missing <span class="hljs-keyword">binary</span> <span class="hljs-keyword">operator</span> before token <span class="hljs-string">&quot;(&quot;</span><br></code></pre></td></tr></table></figure>
+
+<p><strong>原因</strong>:<code>mt76.h</code> 在第 24 行就用了 <code>LINUX_VERSION_CODE</code> &#x2F; <code>KERNEL_VERSION()</code> 宏判断内核版本,但某些编译单元(如 <code>mt7921/mac.c</code>)的包含链在遇到任何会引入 <code>linux/version.h</code> 的头文件<strong>之前</strong>就执行到这一行。老内核会经由其他头文件隐式带上 <code>version.h</code>,<strong>新内核清理了头文件包含,不再保证</strong>。</p>
+<p><strong>解决</strong>:在 <code>mt76.h</code> 顶部补一个 include(一行,根治所有编译单元):</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&lt;linux/version.h&gt;</span></span><br></code></pre></td></tr></table></figure>
+
+<h3 id="4-踩坑-3-仅旧分支-struct-nla-policy-不完整"><a href="#4-踩坑-3-仅旧分支-struct-nla-policy-不完整" class="headerlink" title="4. 踩坑 3(仅旧分支):struct nla_policy 不完整"></a>4. 踩坑 3(仅旧分支):<code>struct nla_policy</code> 不完整</h3><p><strong>现象</strong>:<code>testmode.h:196</code> 报 <code>array type has incomplete element type &#39;struct nla_policy&#39;</code>。</p>
+<p><strong>原因</strong>:<code>testmode.h</code> 引用了 <code>&lt;net/netlink.h&gt;</code> 里的类型,但自己没有任何 <code>#include</code>,全靠调用方碰巧先包含了。旧分支触发,新分支(master)已在 <code>mt76.h</code> 里加了 <code>&lt;net/netlink.h&gt;</code>,无此问题。</p>
+<p><strong>解决</strong>:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">// testmode.h 顶部</span><br><span class="hljs-meta">#<span class="hljs-keyword">include</span> <span class="hljs-string">&lt;net/netlink.h&gt;</span></span><br></code></pre></td></tr></table></figure>
+
+<h3 id="5-踩坑-4-仅旧分支-ieee80211-ops-函数签名全部过时"><a href="#5-踩坑-4-仅旧分支-ieee80211-ops-函数签名全部过时" class="headerlink" title="5. 踩坑 4(仅旧分支):ieee80211_ops 函数签名全部过时"></a>5. 踩坑 4(仅旧分支):<code>ieee80211_ops</code> 函数签名全部过时</h3><p><strong>现象</strong>:<code>mt7921/main.c</code> 里 <code>.stop</code>、<code>.config</code>、<code>.set_rts_threshold</code>、<code>.get_txpower</code>、<code>.get_antenna</code>、<code>.set_antenna</code>、<code>.set_coverage_class</code> 全部报”incompatible pointer type”。</p>
+<p><strong>原因</strong>:内核 7.0 的 <code>struct ieee80211_ops</code> 改了这些回调的签名(如 <code>.config</code> 加了参数、<code>.stop</code> 加了 <code>bool</code>)。旧分支是按老 API 写的。</p>
+<p><strong>解决</strong>:切到 master(见第三节)。手工去适配几十个回调签名不现实。</p>
+<h3 id="6-踩坑-5-最终-新版也踩-ieee80211-txq-aql-pending-不存在"><a href="#6-踩坑-5-最终-新版也踩-ieee80211-txq-aql-pending-不存在" class="headerlink" title="6. 踩坑 5(最终,新版也踩):ieee80211_txq_aql_pending 不存在"></a>6. 踩坑 5(最终,新版也踩):<code>ieee80211_txq_aql_pending</code> 不存在</h3><p><strong>现象</strong>:</p>
+<figure class="highlight fortran"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs fortran">tx.c:<span class="hljs-number">497</span>: error: <span class="hljs-keyword">implicit</span> declaration of <span class="hljs-function"><span class="hljs-keyword">function</span></span> <span class="hljs-string">&#x27;ieee80211_txq_aql_pending&#x27;</span><br></code></pre></td></tr></table></figure>
+
+<p><strong>原因</strong>:内核 7.0 把 mac80211 的 <strong>AQL(airtime queue limits)API 整体移除</strong>了(<code>grep aql</code> 内核头文件一片空白),而 mt76 的 tx.c 还在调用。</p>
+<p><strong>解决</strong>:找到替代 API <code>ieee80211_txq_airtime_check()</code>——文档语义是”AQL 限额未达、还能继续发包时返回 true”。把逻辑取反,语义等价地替换:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs c"><span class="hljs-comment">// 改前:有 AQL 挂起就推迟出队</span><br><span class="hljs-keyword">if</span> (ieee80211_txq_aql_pending(phy-&gt;hw, txq))<br>    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;<br><span class="hljs-comment">// 改后:不能发包(限额已到)就推迟出队</span><br><span class="hljs-keyword">if</span> (!ieee80211_txq_airtime_check(phy-&gt;hw, txq))<br>    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;<br></code></pre></td></tr></table></figure>
+
+<h3 id="7-编译产物"><a href="#7-编译产物" class="headerlink" title="7. 编译产物"></a>7. 编译产物</h3><p>修复后一次编译通过,产出 7 个模块:</p>
+<figure class="highlight stylus"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs stylus">mt76<span class="hljs-selector-class">.ko</span>  mt76-usb<span class="hljs-selector-class">.ko</span>  mt76-connac-lib<span class="hljs-selector-class">.ko</span><br>mt792x-lib<span class="hljs-selector-class">.ko</span>  mt792x-usb<span class="hljs-selector-class">.ko</span><br>mt7921/mt7921-common<span class="hljs-selector-class">.ko</span>  mt7921/mt7921u<span class="hljs-selector-class">.ko</span>   ← 核心驱动<br></code></pre></td></tr></table></figure>
+
+<p><code>mt7921u.ko</code> 的关键信息:</p>
+<figure class="highlight vbnet"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs vbnet"><span class="hljs-symbol">description:</span> MediaTek MT7921U (USB) wireless driver<br><span class="hljs-symbol">alias:</span> usb:v0E8Dp7961d*...     ← 正好匹配网卡 VID:PID,加载后自动绑定<br><span class="hljs-symbol">depends:</span> mt7921-common,mt792x-usb,mt76-usb,mt76,mt76-connac-<span class="hljs-keyword">lib</span>,mt792x-<span class="hljs-keyword">lib</span><br><span class="hljs-symbol">vermagic:</span> <span class="hljs-number">7.0</span>.<span class="hljs-number">0</span>-<span class="hljs-number">28</span>-generic SMP preempt mod_unload modversions   ← 与内核一致<br></code></pre></td></tr></table></figure>
+
+<blockquote>
+<p>因为内核开启了 <code>CONFIG_MODVERSIONS</code>,模块符号带 CRC;我们用的是匹配的完整头文件,CRC 校验自然通过。<code>Module.symvers</code> 的存在是前提。</p>
+</blockquote>
+<hr>
+<h2 id="五、手动加载驱动-换驱动"><a href="#五、手动加载驱动-换驱动" class="headerlink" title="五、手动加载驱动(换驱动)"></a>五、手动加载驱动(换驱动)</h2><h3 id="1-关键前提-模块签名"><a href="#1-关键前提-模块签名" class="headerlink" title="1. 关键前提:模块签名"></a>1. 关键前提:模块签名</h3><p>Ubuntu 内核开启 <code>CONFIG_MODULE_SIG=y</code> 但<strong>没有</strong> <code>CONFIG_MODULE_SIG_FORCE</code>。含义:</p>
+<ul>
+<li>未签名的自编译模块<strong>可以加载</strong>,但会被内核打上 taint 标记;</li>
+<li>只有签名强制校验才会拒绝未签名模块。</li>
+</ul>
+<p>所以自编译驱动能直接 <code>insmod</code>,代价是内核 taint。</p>
+<h3 id="2-卸载系统自带模块"><a href="#2-卸载系统自带模块" class="headerlink" title="2. 卸载系统自带模块"></a>2. 卸载系统自带模块</h3><p>同名模块不能共存,必须先卸载自带的。<strong>按依赖逆序</strong>卸载:</p>
+<figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs nginx"><span class="hljs-attribute">mt7921u</span> → mt792x_usb → mt7921_common → mt792x_lib → mt76_connac_lib → mt76_usb → mt76<br></code></pre></td></tr></table></figure>
+
+<h3 id="3-加载自编译模块"><a href="#3-加载自编译模块" class="headerlink" title="3. 加载自编译模块"></a>3. 加载自编译模块</h3><p><strong>按依赖顺序</strong>用 <code>insmod</code> 指定路径加载:</p>
+<figure class="highlight stylus"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs stylus">mt76<span class="hljs-selector-class">.ko</span> → mt76-usb<span class="hljs-selector-class">.ko</span> → mt76-connac-lib<span class="hljs-selector-class">.ko</span> → mt792x-lib<span class="hljs-selector-class">.ko</span><br>       → mt792x-usb<span class="hljs-selector-class">.ko</span> → mt7921/mt7921-common<span class="hljs-selector-class">.ko</span> → mt7921/mt7921u.ko<br></code></pre></td></tr></table></figure>
+
+<h3 id="4-一键脚本"><a href="#4-一键脚本" class="headerlink" title="4. 一键脚本"></a>4. 一键脚本</h3><p>这些操作需要 root。我的环境<strong>没有配置免密 sudo</strong>,所以写成脚本让用户手动执行一次:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-meta">#!/bin/bash</span><br><span class="hljs-comment"># swap_driver.sh — 卸载自带,加载自编译</span><br>MODS_DIR=/home/xzh/code/mt76<br>IFACE=wlx90de804789d2<br><br>ip <span class="hljs-built_in">link</span> <span class="hljs-built_in">set</span> <span class="hljs-string">&quot;<span class="hljs-variable">$IFACE</span>&quot;</span> down 2&gt;/dev/null<br><br><span class="hljs-comment"># 卸载(依赖逆序)</span><br><span class="hljs-keyword">for</span> m <span class="hljs-keyword">in</span> mt7921u mt792x_usb mt7921_common mt792x_lib mt76_connac_lib mt76_usb mt76; <span class="hljs-keyword">do</span><br>    lsmod | grep -q <span class="hljs-string">&quot;^<span class="hljs-variable">$m</span> &quot;</span> &amp;&amp; rmmod <span class="hljs-string">&quot;<span class="hljs-variable">$m</span>&quot;</span> || <span class="hljs-literal">true</span><br><span class="hljs-keyword">done</span><br><br><span class="hljs-comment"># 加载(依赖顺序)</span><br><span class="hljs-keyword">for</span> m <span class="hljs-keyword">in</span> mt76.ko mt76-usb.ko mt76-connac-lib.ko mt792x-lib.ko \<br>         mt792x-usb.ko mt7921/mt7921-common.ko mt7921/mt7921u.ko; <span class="hljs-keyword">do</span><br>    insmod <span class="hljs-string">&quot;<span class="hljs-variable">$MODS_DIR</span>/<span class="hljs-variable">$m</span>&quot;</span> || <span class="hljs-built_in">exit</span> 1<br><span class="hljs-keyword">done</span><br><br>lsmod | grep -E <span class="hljs-string">&#x27;mt76|mt7921&#x27;</span><br></code></pre></td></tr></table></figure>
+
+<p>执行方式(在 Claude Code 会话里用 <code>!</code> 前缀,密码提示可交互):</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">! <span class="hljs-built_in">sudo</span> bash /home/xzh/code/mt76/swap_driver.sh<br></code></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="六、验证自编译驱动生效"><a href="#六、验证自编译驱动生效" class="headerlink" title="六、验证自编译驱动生效"></a>六、验证自编译驱动生效</h2><h3 id="1-模块加载与接口"><a href="#1-模块加载与接口" class="headerlink" title="1. 模块加载与接口"></a>1. 模块加载与接口</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs bash">lsmod | grep -E <span class="hljs-string">&#x27;mt76|mt7921&#x27;</span><br>ip <span class="hljs-built_in">link</span> show                       <span class="hljs-comment"># wlx... 接口重新出现</span><br><span class="hljs-built_in">readlink</span> -f /sys/bus/usb/devices/*/driver   <span class="hljs-comment"># 最后一级 = mt7921u</span><br></code></pre></td></tr></table></figure>
+
+<h3 id="2-铁证-taint-标记"><a href="#2-铁证-taint-标记" class="headerlink" title="2. 铁证:taint 标记"></a>2. 铁证:taint 标记</h3><p>系统自带的是<strong>签名</strong>模块,自编译的是<strong>未签名 + 外编</strong>模块,加载后会被内核打上 <code>OE</code> 标记:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-built_in">cat</span> /sys/module/mt7921u/taint     <span class="hljs-comment"># 输出 OE(O=外编 out-of-tree,E=未签名/不受支持)</span><br><span class="hljs-built_in">cat</span> /proc/sys/kernel/tainted      <span class="hljs-comment"># 12288 (0x3000)</span><br></code></pre></td></tr></table></figure>
+
+<p>这就证明当前在跑的确实是<strong>自己编译</strong>的那份,而不是系统自带的。</p>
+<h3 id="3-功能验证-扫描-WiFi"><a href="#3-功能验证-扫描-WiFi" class="headerlink" title="3. 功能验证:扫描 WiFi"></a>3. 功能验证:扫描 WiFi</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs bash">nmcli dev wifi list<br></code></pre></td></tr></table></figure>
+
+<p>输出周边多个 2.4GHz &#x2F; 5GHz 网络的 SSID、信号强度、安全类型、信道——<strong>说明驱动完全接管了网卡并能正常收发无线信号</strong>,目标达成。</p>
+<hr>
+<h2 id="七、持久化安装方法-本文只记录-未执行"><a href="#七、持久化安装方法-本文只记录-未执行" class="headerlink" title="七、持久化安装方法(本文只记录,未执行)"></a>七、持久化安装方法(本文只记录,未执行)</h2><p>手动 <code>insmod</code> 只在<strong>本次开机</strong>有效:<strong>重启后 udev 会从 <code>/lib/modules</code> 重新加载系统自带的签名驱动</strong>,一切回到默认。</p>
+<p>如果想让自编译驱动<strong>开机自动生效</strong>,下面两种方案(二选一)。</p>
+<h3 id="方法-A-复制到-updates-目录-depmod-简单直接"><a href="#方法-A-复制到-updates-目录-depmod-简单直接" class="headerlink" title="方法 A:复制到 updates 目录 + depmod(简单直接)"></a>方法 A:复制到 updates 目录 + depmod(简单直接)</h3><p>内核模块搜索路径中,<code>/lib/modules/$(uname -r)/updates/</code> <strong>优先级高于</strong> <code>kernel/</code>。把编译产物放进去,<code>modprobe</code> 就会优先加载我们的版本:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-comment"># 1. 建目录并复制全部 7 个 .ko</span><br><span class="hljs-built_in">sudo</span> <span class="hljs-built_in">mkdir</span> -p /lib/modules/$(<span class="hljs-built_in">uname</span> -r)/updates/drivers/net/wireless/mediatek/mt76<br><span class="hljs-built_in">sudo</span> <span class="hljs-built_in">cp</span> ~/code/mt76/mt76.ko ~/code/mt76/mt76-usb.ko ~/code/mt76/mt76-connac-lib.ko \<br>        ~/code/mt76/mt792x-lib.ko ~/code/mt76/mt792x-usb.ko \<br>        ~/code/mt76/mt7921/mt7921-common.ko ~/code/mt76/mt7921/mt7921u.ko \<br>        /lib/modules/$(<span class="hljs-built_in">uname</span> -r)/updates/drivers/net/wireless/mediatek/mt76/<br><br><span class="hljs-comment"># 2. 重建模块依赖表</span><br><span class="hljs-built_in">sudo</span> depmod -a<br><br><span class="hljs-comment"># 3. 立即切换(验证)</span><br><span class="hljs-built_in">sudo</span> modprobe -r mt7921u &amp;&amp; <span class="hljs-built_in">sudo</span> modprobe mt7921u<br></code></pre></td></tr></table></figure>
+
+<p>之后重启,udev 识别到网卡时会 <code>modprobe mt7921u</code>,命中 updates 里的自编译版本。无线 USB 驱动在用户态由 udev 加载,<strong>不需要</strong>改 initramfs。</p>
+<p><strong>回滚</strong>:删掉 updates 里拷贝的文件再 <code>sudo depmod -a</code>,即恢复系统自带驱动。</p>
+<p><strong>缺点</strong>:内核一旦升级(换 <code>$(uname -r)</code>),updates 目录跟着变,需要重新编译重装;无免密 sudo 时每次都要输密码。</p>
+<h3 id="方法-B-DKMS-内核升级自动重编译-推荐但配置略繁琐"><a href="#方法-B-DKMS-内核升级自动重编译-推荐但配置略繁琐" class="headerlink" title="方法 B:DKMS(内核升级自动重编译,推荐但配置略繁琐)"></a>方法 B:DKMS(内核升级自动重编译,推荐但配置略繁琐)</h3><p>DKMS 能在<strong>每次内核升级后自动重新编译</strong>模块,免去手工维护。mt76 是”一树多模块 + 子目录”结构(<code>mt7921/</code> 里有 <code>mt7921-common.ko</code> &#x2F; <code>mt7921u.ko</code>),需要专门写一份 <code>dkms.conf</code>:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-built_in">sudo</span> apt install dkms<br><span class="hljs-comment"># 把源码放到 dkms 约定目录</span><br><span class="hljs-built_in">sudo</span> <span class="hljs-built_in">cp</span> -r ~/code/mt76 /usr/src/mt76-1.0<br></code></pre></td></tr></table></figure>
+
+<p><code>/usr/src/mt76-1.0/dkms.conf</code> 示意(核心是把编译命令和 7 个模块都列出来):</p>
+<figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><code class="hljs ini"><span class="hljs-attr">PACKAGE_NAME</span>=<span class="hljs-string">&quot;mt76&quot;</span><br><span class="hljs-attr">PACKAGE_VERSION</span>=<span class="hljs-string">&quot;1.0&quot;</span><br>MAKE<span class="hljs-section">[0]</span>=&quot;make -C /lib/modules/$&#123;kernelver&#125;/build <span class="hljs-attr">M</span>=<span class="hljs-variable">$&#123;dkms_tree&#125;</span>/<span class="hljs-variable">$&#123;PACKAGE_NAME&#125;</span>/<span class="hljs-variable">$&#123;PACKAGE_VERSION&#125;</span> CONFIG_MT76=m CONFIG_MT76_USB=m CONFIG_MT76_CONNAC_LIB=m CONFIG_MT792x_LIB=m CONFIG_MT792x_USB=m CONFIG_MT7921_COMMON=m CONFIG_MT7921U=m CONFIG_MT76_SDIO=n CONFIG_MT76x02_LIB=n CONFIG_MT76x02_USB=n CONFIG_MT76x0_COMMON=n CONFIG_MT76x2_COMMON=n CONFIG_MT7603E=n CONFIG_MT7615_COMMON=n CONFIG_MT7915E=n CONFIG_MT7996E=n CONFIG_MT7925_COMMON=n CONFIG_MT7921E=n CONFIG_MT7921S=n modules<span class="hljs-string">&quot;</span><br><span class="hljs-string">CLEAN=&quot;</span>make -C /lib/modules/<span class="hljs-variable">$&#123;kernelver&#125;</span>/build M=<span class="hljs-variable">$&#123;dkms_tree&#125;</span>/<span class="hljs-variable">$&#123;PACKAGE_NAME&#125;</span>/<span class="hljs-variable">$&#123;PACKAGE_VERSION&#125;</span> clean<span class="hljs-string">&quot;</span><br><span class="hljs-string">BUILT_MODULE_NAME[0]=&quot;</span>mt76<span class="hljs-string">&quot;</span><br><span class="hljs-string">BUILT_MODULE_NAME[1]=&quot;</span>mt76-usb<span class="hljs-string">&quot;</span><br><span class="hljs-string">BUILT_MODULE_NAME[2]=&quot;</span>mt76-connac-lib<span class="hljs-string">&quot;</span><br><span class="hljs-string">BUILT_MODULE_NAME[3]=&quot;</span>mt792x-lib<span class="hljs-string">&quot;</span><br><span class="hljs-string">BUILT_MODULE_NAME[4]=&quot;</span>mt792x-usb<span class="hljs-string">&quot;</span><br><span class="hljs-string">BUILT_MODULE_NAME[5]=&quot;</span>mt7921-common<span class="hljs-string">&quot;</span><br><span class="hljs-string">BUILT_MODULE_NAME[6]=&quot;</span>mt7921u<span class="hljs-string">&quot;</span><br><span class="hljs-string">DEST_MODULE_LOCATION[0]=&quot;</span>/updates/drivers/net/wireless/mediatek/mt76<span class="hljs-string">&quot;</span><br><span class="hljs-string">DEST_MODULE_LOCATION[1]=&quot;</span>/updates/drivers/net/wireless/mediatek/mt76<span class="hljs-string">&quot;</span><br><span class="hljs-string">DEST_MODULE_LOCATION[2]=&quot;</span>/updates/drivers/net/wireless/mediatek/mt76<span class="hljs-string">&quot;</span><br><span class="hljs-string">DEST_MODULE_LOCATION[3]=&quot;</span>/updates/drivers/net/wireless/mediatek/mt76<span class="hljs-string">&quot;</span><br><span class="hljs-string">DEST_MODULE_LOCATION[4]=&quot;</span>/updates/drivers/net/wireless/mediatek/mt76<span class="hljs-string">&quot;</span><br><span class="hljs-string">DEST_MODULE_LOCATION[5]=&quot;</span>/updates/drivers/net/wireless/mediatek/mt76<span class="hljs-string">&quot;</span><br><span class="hljs-string">DEST_MODULE_LOCATION[6]=&quot;</span>/updates/drivers/net/wireless/mediatek/mt76<span class="hljs-string">&quot;</span><br></code></pre></td></tr></table></figure>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs bash"><span class="hljs-built_in">sudo</span> dkms add     -m mt76 -v 1.0<br><span class="hljs-built_in">sudo</span> dkms build   -m mt76 -v 1.0<br><span class="hljs-built_in">sudo</span> dkms install -m mt76 -v 1.0<br></code></pre></td></tr></table></figure>
+
+<blockquote>
+<p>注意:mt76 的 <code>mt7921-common.ko</code> &#x2F; <code>mt7921u.ko</code> 编译在子目录里,DKMS 默认在源码根目录找产物,可能需要额外调整(如 <code>BUILD_MODULE_PATH</code> 或用 <code>install</code> 前的符号链接)。方案 B 需在真实执行时按 DKMS 版本微调。</p>
+</blockquote>
+<h3 id="持久化的其他注意点"><a href="#持久化的其他注意点" class="headerlink" title="持久化的其他注意点"></a>持久化的其他注意点</h3><ul>
+<li><strong>模块签名&#x2F;taint</strong>:自编译未签名模块即使持久化,每次加载仍会打 <code>OE</code> taint。若在意,可自建密钥给模块签名并 MOK 入内核信任链(在 VMware 且未开 Secure Boot 的环境通常没必要)。</li>
+<li><strong>源码补丁保留</strong>:持久化依赖 <code>~/code/mt76</code> 里的两个补丁(<code>mt76.h</code> 加 <code>version.h</code>、<code>tx.c</code> 换 <code>airtime_check</code>),升级源码时记得重新评估。</li>
+<li><strong>与系统自带驱动互斥</strong>:只要 updates&#x2F; 或 DKMS 生效,系统自带的同名模块就不会被加载,无需 blacklist。</li>
+</ul>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>把整个流程浓缩成一句话:<strong>工具链匹配 + 源码版本匹配 + API 适配 + 正确处理同名模块与签名,内核模块自编译就能顺利跑起来。</strong></p>
+<p>值得记住的点:</p>
+<ul>
+<li>✅ 内核驱动外编:头文件版本 &#x3D; 运行内核版本,先 <code>lsmod</code> 看依赖链,再动手;</li>
+<li>✅ 源码尽量切最新分支,别在旧分支上手工适配几十个 API;</li>
+<li>✅ kbuild 外编要显式 <code>=n</code> 关掉不需要的驱动,否则内核 <code>.config</code> 会把它们一起拖进来;</li>
+<li>✅ Ubuntu 未开 <code>MODULE_SIG_FORCE</code>,自编译未签名模块能加载,代价只是 taint;</li>
+<li>✅ 同名模块互斥,换驱动 &#x3D; 逆序 <code>rmmod</code> + 顺序 <code>insmod</code>;</li>
+<li>✅ 手动加载是一次性的,持久化用 <code>updates/ + depmod</code> 或 DKMS。</li>
+</ul>
+<p>以后内核升级了,记得重新走一遍”编译 → 验证”流程。</p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E6%8A%80%E6%9C%AF/" class="category-chain-item">技术</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/Linux/" class="print-no-link">#Linux</a>
+      
+        <a href="/tags/%E9%A9%B1%E5%8A%A8/" class="print-no-link">#驱动</a>
+      
+        <a href="/tags/MT7921U/" class="print-no-link">#MT7921U</a>
+      
+        <a href="/tags/mt76/" class="print-no-link">#mt76</a>
+      
+        <a href="/tags/%E5%86%85%E6%A0%B8%E7%BC%96%E8%AF%91/" class="print-no-link">#内核编译</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>VMware 虚拟机自编译 MT7921U 无线网卡驱动全记录</div>
+      <div>https://zhihongxu711.github.io/2026/07/31/Linux-自编译MT7921U无线网卡驱动全记录/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>zhihong.xu</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2026年7月31日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-cc-by"></i>
+                  </span>
+                </a>
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="NC - 非商业性使用">
+                    <i class="iconfont icon-cc-nc"></i>
+                  </span>
+                </a>
+              
+                <a class="print-no-link" target="_blank" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="SA - 相同方式共享">
+                    <i class="iconfont icon-cc-sa"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2026/07/26/Hexo-%E5%8D%9A%E5%AE%A2%E6%90%AD%E5%BB%BA%E4%B8%8E%E9%83%A8%E7%BD%B2%E5%85%A8%E8%AE%B0%E5%BD%95/" title="Hexo 博客搭建与 GitHub Pages 部署全记录">
+                        <span class="hidden-mobile">Hexo 博客搭建与 GitHub Pages 部署全记录</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.4/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.20.1/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    function isExpandAllEnabled() {
+      return CONFIG.toc && CONFIG.toc.expand_all === true;
+    }
+    function expandAllToc() {
+      if (!isExpandAllEnabled()) { return; }
+      jQuery('#toc-body .tocbot-is-collapsed').removeClass('tocbot-is-collapsed');
+    }
+    function updateTocToggle($li, $childList) {
+      var $toggle = $li.children('.toc-toggle');
+      if ($toggle.length === 0) { return; }
+      var collapsed = $childList.hasClass('tocbot-is-collapsed');
+      $toggle
+        .toggleClass('toc-toggle-collapsed', collapsed)
+        .toggleClass('toc-toggle-expanded', !collapsed);
+    }
+    function bindTocToggle() {
+      if (!isExpandAllEnabled()) { return; }
+      jQuery('#toc-body .toc-list-item').each(function() {
+        var $li = jQuery(this);
+        var $childList = $li.children('ol');
+        if ($childList.length === 0) {
+          if ($li.children('.toc-toggle').length === 0) {
+            $li.prepend('<span class="toc-toggle toc-toggle-placeholder" aria-hidden="true">›</span>');
+          }
+          return;
+        }
+
+        if ($li.children('.toc-toggle').length === 0) {
+          $li.prepend('<span class="toc-toggle toc-toggle-expanded" aria-hidden="true">›</span>');
+        }
+        updateTocToggle($li, $childList);
+      });
+      jQuery('#toc-body').off('click.tocToggle').on('click.tocToggle', '.toc-toggle', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var $li = jQuery(this).parent('.toc-list-item');
+        var $childList = $li.children('ol');
+        if ($childList.length === 0) { return; }
+        $childList.toggleClass('tocbot-is-collapsed');
+        updateTocToggle($li, $childList);
+      });
+      if (!window.__tocToggleObserver) {
+        window.__tocToggleObserver = new MutationObserver(function(mutations) {
+          mutations.forEach(function(mutation) {
+            if (mutation.type !== 'attributes' || mutation.attributeName !== 'class') { return; }
+            var $list = jQuery(mutation.target);
+            var $li = $list.parent('.toc-list-item');
+            if ($li.length === 0) { return; }
+            updateTocToggle($li, $list);
+          });
+        });
+        jQuery('#toc-body ol').each(function() {
+          window.__tocToggleObserver.observe(this, { attributes: true });
+        });
+      }
+    }
+    var tocConfig = Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc);
+    if (isExpandAllEnabled()) {
+      tocConfig.collapseDepth = 6;
+    }
+    window.tocbot.init(tocConfig);
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+    expandAllToc();
+    bindTocToggle();
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+        expandAllToc();
+        bindTocToggle();
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/5.0.0/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
