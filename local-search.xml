@@ -161,39 +161,4 @@
   
   
   
-  
-  
-  <entry>
-    <title>分类</title>
-    <link href="/"/>
-    <url>/</url>
-    
-    <content type="html"><![CDATA[]]></content>
-    
-  </entry>
-  
-  
-  
-  <entry>
-    <title>标签</title>
-    <link href="/"/>
-    <url>/</url>
-    
-    <content type="html"><![CDATA[]]></content>
-    
-  </entry>
-  
-  
-  
-  <entry>
-    <title>关于</title>
-    <link href="/"/>
-    <url>/</url>
-    
-    <content type="html"><![CDATA[<p>欢迎来到我的博客！这里会记录我的技术学习、生活感悟和各种有趣的发现。</p>]]></content>
-    
-  </entry>
-  
-  
-  
 </search>
